@@ -67,11 +67,7 @@ The application is built using React and leverages the `teleparty-websocket-lib`
 
 ## Potential Improvements
 
-* **Enhanced UI/UX:** Improve the visual design and user experience of the chat interface.
-* **User Presence:** Implement indicators for when users are online or typing.
-* **Error Handling:** Add more robust error handling for network issues and backend responses.
 * **Message History:** (As discussed in the code comments) Implement the retrieval and display of previous messages when a user joins a room, if the Teleparty backend supports this feature.
-* **Styling with CSS Modules/Styled Components:** Adopt a more modular CSS approach for better maintainability.
 * **Upload feature:** Allow users to choose/upload a user icon
 
 
