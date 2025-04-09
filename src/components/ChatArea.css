@@ -78,3 +78,17 @@
     margin: 5px 0;
     font-size: 0.9em;
   }
+
+  .typing-indicator {
+    font-style: italic;
+    color: #888;
+    margin-top: 5px;
+    font-size: 0.9em;
+  }
+  
+
+  .typing-indicator::after {
+    content: "...";
+    display: inline-block;
+    animation: blink 1s infinite;
+  }

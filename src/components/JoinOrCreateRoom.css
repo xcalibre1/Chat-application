@@ -73,3 +73,7 @@
     height: 1px;
     margin: 0 10px;
   }
+
+  .error-message {
+    color: red;
+  }

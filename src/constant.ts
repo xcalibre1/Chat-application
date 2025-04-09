@@ -3,7 +3,7 @@ export const localeConfig: {[key: string]: string} = {
     "LEAVE_ROOM": "Leave Room",
     "TYPE_YOUR_MESSAGE": "Type your message...",
     "SEND": "Send",
-    "IS_": " is ", 
+    "IS_": " is ",
     "JOIN_OR_CREATE_A_CHAT_ROOM": "Join or Create a Chat Room",
     "CREATE_NEW_ROOM": "Create New Room",
     "NICKNAME": "Nickname",
@@ -13,7 +13,8 @@ export const localeConfig: {[key: string]: string} = {
     "ROOM_ID": "Room ID",
     "ENTER_ROOM_ID": "Enter Room ID",
     "JOIN_ROOM": "Join Room",
-    "PLEASE_ENTER_A_NICKNAME_TO_CREATE_A_ROOM.": "Please enter a nickname to create a room.",
-    "PLEASE_ENTER_A_ROOM_ID_AND_A_NICKNAME_TO_JOIN.": "Please enter a room ID and a nickname to join.",
+    "PLEASE_ENTER_A_NICKNAME": "Please enter a nickname.",
+    "PLEASE_ENTER_A_ROOM_ID": "Please enter a Room ID.",
     "FAILED_TO_CREATE_ROOM": "Failed to create room.",
+    "SOMEONE_IS_TYPING": "Someone is typing..."
   };

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './ChatArea.css';
 import { localeConfig } from '../constant';
 
@@ -16,11 +16,22 @@ interface ChatAreaProps {
   onSendMessage: (message: string) => void;
   roomId: string;
   onLeaveRoom: () => void;
+  sendTypingStatus: (isTyping: boolean) => void;
+  isSomeoneTyping: boolean;
 }
 
-const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, roomId, onLeaveRoom }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({
+  messages,
+  onSendMessage,
+  roomId,
+  onLeaveRoom,
+  sendTypingStatus,
+  isSomeoneTyping,
+}) => {
   const [newMessage, setNewMessage] = useState('');
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [isUserTyping, setIsUserTyping] = useState(false);
+  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -28,18 +39,58 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, roomId, on
     }
   }, [messages]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = useCallback(() => {
     if (newMessage.trim()) {
+      console.log("newMessage", newMessage);
       onSendMessage(newMessage);
       setNewMessage('');
+      setIsUserTyping(false);
+      sendTypingStatus(false);
+      if (typingTimeout.current) {
+        clearTimeout(typingTimeout.current);
+      }
     }
-  };
+  }, [newMessage, onSendMessage, sendTypingStatus]);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const text = e.target.value;
+    setNewMessage(text);
+
+    // Typing presence logic
+    if (text.trim() && !isUserTyping) {
+      setIsUserTyping(true);
+      sendTypingStatus(true);
+      if (typingTimeout.current) {
+        clearTimeout(typingTimeout.current);
+      }
+      typingTimeout.current = setTimeout(() => {
+        setIsUserTyping(false);
+        sendTypingStatus(false);
+      }, 1000); 
+    } else if (!text.trim() && isUserTyping) {
+      setIsUserTyping(false);
+      sendTypingStatus(false);
+      if (typingTimeout.current) {
+        clearTimeout(typingTimeout.current);
+      }
+    } else if (text.trim() && isUserTyping) {
+      if (typingTimeout.current) {
+        clearTimeout(typingTimeout.current);
+      }
+      typingTimeout.current = setTimeout(() => {
+        setIsUserTyping(false);
+        sendTypingStatus(false);
+      }, 1000);
+    }
+  }, [isUserTyping, sendTypingStatus]);
+
+  console.log("isSomeoneTyping", isSomeoneTyping)
 
   return (
     <div className="chat-area-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>{localeConfig.CHAT_ROOM}: {roomId}</h2>
-        <button onClick={onLeaveRoom}>{localeConfig.LEAVE_ROOM}</button> {/* Button to trigger navigation back */}
+        <button onClick={onLeaveRoom}>{localeConfig.LEAVE_ROOM}</button>
       </div>
       <div className="chat-messages" ref={chatContainerRef}>
         {messages.map((msg, index) => (
@@ -55,11 +106,16 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, roomId, on
           </div>
         ))}
       </div>
+
+      {isSomeoneTyping && (
+        <div className="typing-indicator">{localeConfig.SOMEONE_IS_TYPING}</div>
+      )}
+
       <div className="message-input-area">
         <input
           type="text"
           value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
+          onChange={handleInputChange}
           placeholder={localeConfig.TYPE_YOUR_MESSAGE}
           className="message-input"
           onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}

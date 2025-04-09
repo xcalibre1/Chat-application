@@ -1,10 +1,10 @@
-// hooks/useTeleparty.ts
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   TelepartyClient,
   SocketEventHandler,
   SocketMessageTypes,
   SessionChatMessage,
+  MessageList,
 } from 'teleparty-websocket-lib';
 
 interface ChatMessage {
@@ -16,21 +16,41 @@ interface ChatMessage {
   timestamp: number;
 }
 
-function useTeleparty() {
+interface TelepartyHookResult {
+  client: TelepartyClient | null;
+  messages: ChatMessage[];
+  isConnected: boolean;
+  isSomeoneTyping: boolean;
+  sendMessage: (type: SocketMessageTypes, data: { body: string }) => void;
+  createChatRoom: (nickname: string) => Promise<string | null>;
+  joinChatRoom: (nickname: string, roomId: string) => Promise<void>;
+  sendTypingStatus: (isTyping: boolean) => void;
+}
+
+
+function useTeleparty(): TelepartyHookResult {
   const [client, setClient] = useState<TelepartyClient | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const chatMessagesRef = useRef<ChatMessage[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isSomeoneTyping, setIsSomeoneTyping] = useState<boolean>(false); // New state
 
-  useEffect(() => {
+  const connect = useCallback(() => {
     const eventHandler: SocketEventHandler = {
       onConnectionReady: () => {
         console.log('Teleparty Connection Ready');
+        setIsConnected(true);
+      
       },
       onClose: () => {
-        console.log('Teleparty Socket Closed');
-        alert('Connection to the chat server has been lost. Please reload the page.');
+        setIsConnected(false);
+        setIsSomeoneTyping(false); // Reset typing status on disconnect
+        console.log(`Teleparty Socket Closed`);
+        
       },
       onMessage: (message: any) => {
+        console.log("message-check", message);
+        // TODO for history message implementation
         if (message.type === SocketMessageTypes.SEND_MESSAGE) {
           const chatMessage: SessionChatMessage = message.data;
           const newMessage: ChatMessage = {
@@ -43,47 +63,100 @@ function useTeleparty() {
           };
           chatMessagesRef.current = [...chatMessagesRef.current, newMessage];
           setMessages(chatMessagesRef.current);
+        } else if (message.data?.messages) {
+          const messageList: MessageList = message.data;
+          const previousMessages: ChatMessage[] = messageList.messages.map(chatMessage => ({
+            isSystemMessage: chatMessage.isSystemMessage,
+            userIcon: chatMessage.userIcon,
+            userNickname: chatMessage.userNickname,
+            body: chatMessage.body,
+            permId: chatMessage.permId,
+            timestamp: chatMessage.timestamp,
+          }));
+          chatMessagesRef.current = [...previousMessages, ...chatMessagesRef.current];
+          setMessages(chatMessagesRef.current);
         }
-        // Handle other message types if needed
+        else if (message.type === SocketMessageTypes.SET_TYPING_PRESENCE) {
+          const typingData: { anyoneTyping: boolean; usersTyping: string[] } = message.data;
+          setIsSomeoneTyping(typingData.anyoneTyping);
+        }
       },
     };
 
-    const newClient = new TelepartyClient(eventHandler);
-    setClient(newClient);
+    setClient(new TelepartyClient(eventHandler));
   }, []);
 
-  const sendMessage = (type: SocketMessageTypes, data: any) => {
-    if (client) {
-      client.sendMessage(type, data);
-    } else {
-      console.error('Teleparty client not initialized.');
-    }
-  };
+  useEffect(() => {
+    connect();
 
-  const createChatRoom = async (nickname: string): Promise<string | null> => {
-    if (client) {
-      try {
-        const roomIdResult = await client.createChatRoom(nickname);
-        return roomIdResult;
-      } catch (error) {
-        console.error('Error creating room:', error);
+    return () => {
+      if (client) {
+        client.teardown();
+      }
+    };
+  }, [connect]);
+
+  const sendMessage = useCallback(
+    (type: SocketMessageTypes, data: { body: string }) => {
+      if (client && isConnected) {
+        console.log("msg", data)
+        client.sendMessage(type, data);
+      } else {
+        console.error('Teleparty client not initialized or not connected.');
+      }
+    },
+    [client, isConnected]
+  );
+
+  const createChatRoom = useCallback(
+    async (nickname: string): Promise<string | null> => {
+      if (client && isConnected) {
+        try {
+          const roomIdResult = await client.createChatRoom(nickname);
+          return roomIdResult;
+        } catch (error) {
+          console.error('Error creating room:', error);
+          return null;
+        }
+      } else {
+        console.error('Teleparty client not initialized or not connected.');
         return null;
       }
-    } else {
-      console.error('Teleparty client not initialized.');
-      return null;
-    }
-  };
+    },
+    [client, isConnected]
+  );
 
-  const joinChatRoom = (nickname: string, roomId: string): void => {
-    if (client) {
-      client.joinChatRoom(nickname, roomId);
-    } else {
-      console.error('Teleparty client not initialized.');
-    }
-  };
+  const joinChatRoom = useCallback(
+    (nickname: string, roomId: string): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        if (client && isConnected) {
+          client.joinChatRoom(nickname, roomId)
+            .then(() => resolve())
+            .catch((e) => reject(e));
+        } else {
+          const errorMessage = 'Teleparty client not initialized or not connected.';
+          console.error(errorMessage);
+          reject(new Error(errorMessage));
+        }
+      });
+    },
+    [client, isConnected]
+  );
 
-  return { client, messages, sendMessage, createChatRoom, joinChatRoom };
+  const sendTypingStatus = useCallback(
+    (isTyping: boolean) => {
+      if (client && isConnected) {
+        client.sendMessage(SocketMessageTypes.SET_TYPING_PRESENCE, {
+          typing: isTyping,
+        });
+      } else {
+        console.error('Could not send typing status: client not ready.');
+      }
+    },
+    [client, isConnected]
+  );
+
+  return { client, messages, isConnected, sendMessage, createChatRoom, joinChatRoom, sendTypingStatus, isSomeoneTyping };
 }
 
 export default useTeleparty;
