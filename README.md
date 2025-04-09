@@ -14,6 +14,7 @@ This document provides an overview of the Teleparty Chat application, its featur
 
 ## Architecture
 
+
 The application is built using React and leverages the `teleparty-websocket-lib` for handling WebSocket communication with the Teleparty backend. The main components are:
 
 * **`App.tsx`:** The main application component. It manages the overall state, including the current view (join/create or chat), user nickname, current room ID, and the WebSocket client. It also handles the logic for creating and joining rooms and switching between the UI views.
