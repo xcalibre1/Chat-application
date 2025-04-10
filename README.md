@@ -68,6 +68,7 @@ The application is built using React and leverages the `teleparty-websocket-lib`
 
 ## Potential Improvements
 
+
 * **Message History:** (As discussed in the code comments) Implement the retrieval and display of previous messages when a user joins a room, if the Teleparty backend supports this feature.
 * **Upload feature:** Allow users to choose/upload a user icon
 
