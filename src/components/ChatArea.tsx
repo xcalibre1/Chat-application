@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import './ChatArea.css';
 import { localeConfig } from '../constant';
 
@@ -17,7 +17,8 @@ interface ChatAreaProps {
   roomId: string;
   onLeaveRoom: () => void;
   sendTypingStatus: (isTyping: boolean) => void;
-  isSomeoneTyping: boolean;
+  someoneTyping: { anyoneTyping: boolean; usersTyping: string[] };
+  connectedUser: string;
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({
@@ -26,7 +27,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   roomId,
   onLeaveRoom,
   sendTypingStatus,
-  isSomeoneTyping,
+  someoneTyping,
+  connectedUser
 }) => {
   const [newMessage, setNewMessage] = useState('');
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -84,7 +86,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     }
   }, [isUserTyping, sendTypingStatus]);
 
-  console.log("isSomeoneTyping", isSomeoneTyping)
+  const isTypingShown = useMemo(() => {
+      return Boolean(someoneTyping.usersTyping.find(id => id.includes(connectedUser)));
+    
+  }, [connectedUser, someoneTyping])
+
 
   return (
     <div className="chat-area-container">
@@ -107,7 +113,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         ))}
       </div>
 
-      {isSomeoneTyping && (
+      {someoneTyping.anyoneTyping && !isTypingShown && (
         <div className="typing-indicator">{localeConfig.SOMEONE_IS_TYPING}</div>
       )}
 

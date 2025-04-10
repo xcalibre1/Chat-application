@@ -4,7 +4,6 @@ import {
   SocketEventHandler,
   SocketMessageTypes,
   SessionChatMessage,
-  MessageList,
 } from 'teleparty-websocket-lib';
 
 interface ChatMessage {
@@ -20,11 +19,12 @@ interface TelepartyHookResult {
   client: TelepartyClient | null;
   messages: ChatMessage[];
   isConnected: boolean;
-  isSomeoneTyping: boolean;
+  someoneTyping: { anyoneTyping: boolean; usersTyping: string[] };
   sendMessage: (type: SocketMessageTypes, data: { body: string }) => void;
   createChatRoom: (nickname: string) => Promise<string | null>;
   joinChatRoom: (nickname: string, roomId: string) => Promise<void>;
   sendTypingStatus: (isTyping: boolean) => void;
+  connectedUser: string;
 }
 
 
@@ -33,7 +33,8 @@ function useTeleparty(): TelepartyHookResult {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const chatMessagesRef = useRef<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [isSomeoneTyping, setIsSomeoneTyping] = useState<boolean>(false); // New state
+  const [someoneTyping, setSomeoneTyping] = useState<{ anyoneTyping: boolean; usersTyping: string[] }>({anyoneTyping: false, usersTyping: []}); // New state
+  const [connectedUser, setConnectedUser] = useState<string>("");
 
   const connect = useCallback(() => {
     const eventHandler: SocketEventHandler = {
@@ -44,7 +45,7 @@ function useTeleparty(): TelepartyHookResult {
       },
       onClose: () => {
         setIsConnected(false);
-        setIsSomeoneTyping(false); // Reset typing status on disconnect
+        setSomeoneTyping({anyoneTyping: false, usersTyping: []}); // Reset typing status on disconnect
         console.log(`Teleparty Socket Closed`);
         
       },
@@ -63,22 +64,13 @@ function useTeleparty(): TelepartyHookResult {
           };
           chatMessagesRef.current = [...chatMessagesRef.current, newMessage];
           setMessages(chatMessagesRef.current);
-        } else if (message.data?.messages) {
-          const messageList: MessageList = message.data;
-          const previousMessages: ChatMessage[] = messageList.messages.map(chatMessage => ({
-            isSystemMessage: chatMessage.isSystemMessage,
-            userIcon: chatMessage.userIcon,
-            userNickname: chatMessage.userNickname,
-            body: chatMessage.body,
-            permId: chatMessage.permId,
-            timestamp: chatMessage.timestamp,
-          }));
-          chatMessagesRef.current = [...previousMessages, ...chatMessagesRef.current];
-          setMessages(chatMessagesRef.current);
+        } else if (message.type === "userId") {
+          const messageData = message.data;
+          setConnectedUser(messageData.userId);
         }
         else if (message.type === SocketMessageTypes.SET_TYPING_PRESENCE) {
           const typingData: { anyoneTyping: boolean; usersTyping: string[] } = message.data;
-          setIsSomeoneTyping(typingData.anyoneTyping);
+          setSomeoneTyping(typingData);
         }
       },
     };
@@ -99,7 +91,6 @@ function useTeleparty(): TelepartyHookResult {
   const sendMessage = useCallback(
     (type: SocketMessageTypes, data: { body: string }) => {
       if (client && isConnected) {
-        console.log("msg", data)
         client.sendMessage(type, data);
       } else {
         console.error('Teleparty client not initialized or not connected.');
@@ -156,7 +147,7 @@ function useTeleparty(): TelepartyHookResult {
     [client, isConnected]
   );
 
-  return { client, messages, isConnected, sendMessage, createChatRoom, joinChatRoom, sendTypingStatus, isSomeoneTyping };
+  return { client, messages, isConnected, sendMessage, createChatRoom, joinChatRoom, sendTypingStatus, someoneTyping, connectedUser };
 }
 
 export default useTeleparty;

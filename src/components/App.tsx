@@ -25,7 +25,7 @@ function App() {
     null
   );
 
-  const { messages, sendMessage, createChatRoom, joinChatRoom, isConnected, isSomeoneTyping, sendTypingStatus } = useTeleparty();
+  const { messages, sendMessage, createChatRoom, joinChatRoom, isConnected, someoneTyping, sendTypingStatus, connectedUser } = useTeleparty();
   const hasAttemptedRejoin = useRef(false);
   const [joinError, setJoinError] = useState<string>();
 
@@ -100,7 +100,8 @@ function App() {
           roomId={roomId}
           onLeaveRoom={handleLeaveRoom}
           sendTypingStatus={sendTypingStatus}
-          isSomeoneTyping={isSomeoneTyping}
+          someoneTyping={someoneTyping}
+          connectedUser={connectedUser}
         />
       )}
     </div>
