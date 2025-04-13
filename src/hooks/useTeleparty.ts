@@ -25,7 +25,11 @@ interface TelepartyHookResult {
   joinChatRoom: (nickname: string, roomId: string) => Promise<void>;
   sendTypingStatus: (isTyping: boolean) => void;
   connectedUser: string;
+  connect: () => void
 }
+
+const MAX_RECONNECT_ATTEMPTS = 5;
+const INITIAL_RECONNECT_DELAY = 1000;
 
 
 function useTeleparty(): TelepartyHookResult {
@@ -35,23 +39,34 @@ function useTeleparty(): TelepartyHookResult {
   const [isConnected, setIsConnected] = useState(false);
   const [someoneTyping, setSomeoneTyping] = useState<{ anyoneTyping: boolean; usersTyping: string[] }>({anyoneTyping: false, usersTyping: []}); // New state
   const [connectedUser, setConnectedUser] = useState<string>("");
+  const reconnectAttempts = useRef(0);
+  const reconnectDelay = useRef(INITIAL_RECONNECT_DELAY);
 
   const connect = useCallback(() => {
     const eventHandler: SocketEventHandler = {
       onConnectionReady: () => {
         console.log('Teleparty Connection Ready');
         setIsConnected(true);
+        reconnectAttempts.current = 0;
+        reconnectDelay.current = INITIAL_RECONNECT_DELAY;
       
       },
       onClose: () => {
         setIsConnected(false);
-        setSomeoneTyping({anyoneTyping: false, usersTyping: []}); // Reset typing status on disconnect
+        setSomeoneTyping({anyoneTyping: false, usersTyping: []});
         console.log(`Teleparty Socket Closed`);
+        if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
+          setTimeout(() => {
+              reconnectAttempts.current++;
+              connect();
+              reconnectDelay.current *= 2;
+          }, reconnectDelay.current);
+      } else {
+          console.log('Max reconnection attempts reached. Please refresh the page.');
+      }
         
       },
       onMessage: (message: any) => {
-        console.log("message-check", message);
-        // TODO for history message implementation
         if (message.type === SocketMessageTypes.SEND_MESSAGE) {
           const chatMessage: SessionChatMessage = message.data;
           const newMessage: ChatMessage = {
@@ -122,7 +137,22 @@ function useTeleparty(): TelepartyHookResult {
       return new Promise((resolve, reject) => {
         if (client && isConnected) {
           client.joinChatRoom(nickname, roomId)
-            .then(() => resolve())
+            .then((response) => {
+              if (Array.isArray(response.messages)) {
+                const formattedMessages: ChatMessage[] = response.messages.map((msg: any) => ({
+                  isSystemMessage: msg.isSystemMessage,
+                  userIcon: msg.userIcon,
+                  userNickname: msg.userNickname,
+                  body: msg.body,
+                  permId: msg.permId,
+                  timestamp: msg.timestamp,
+                }));  
+                
+                chatMessagesRef.current = formattedMessages;
+                setMessages(formattedMessages);
+              }
+              resolve();
+            })
             .catch((e) => reject(e));
         } else {
           const errorMessage = 'Teleparty client not initialized or not connected.';
@@ -147,7 +177,8 @@ function useTeleparty(): TelepartyHookResult {
     [client, isConnected]
   );
 
-  return { client, messages, isConnected, sendMessage, createChatRoom, joinChatRoom, sendTypingStatus, someoneTyping, connectedUser };
+
+  return { client, messages, isConnected, sendMessage, createChatRoom, joinChatRoom, sendTypingStatus, someoneTyping, connectedUser, connect };
 }
 
 export default useTeleparty;

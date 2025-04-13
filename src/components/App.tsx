@@ -25,7 +25,7 @@ function App() {
     null
   );
 
-  const { messages, sendMessage, createChatRoom, joinChatRoom, isConnected, someoneTyping, sendTypingStatus, connectedUser } = useTeleparty();
+  const { messages, sendMessage, createChatRoom, joinChatRoom, isConnected, someoneTyping, sendTypingStatus, connectedUser, client } = useTeleparty();
   const hasAttemptedRejoin = useRef(false);
   const [joinError, setJoinError] = useState<string>();
 
@@ -37,7 +37,6 @@ function App() {
         hasAttemptedRejoin.current = true;
         setTimeout(() => {
           joinChatRoom(currentNickname, roomId).catch(() => {
-            // Rejoin failed
             clearNickname();
             clearRoomId();
             setCurrentView(View.JOIN);
@@ -57,6 +56,7 @@ function App() {
     if (newRoomId) {
       setRoomId(newRoomId);
       setCurrentView(View.CHAT);
+      setJoinError("");
     } else {
       setJoinError('Failed to create room.');
     }
@@ -68,6 +68,7 @@ function App() {
       setCurrentView(View.CHAT);
       setCurrentNickname(nickname);
       setRoomId(roomIdToJoin);
+      setJoinError("")
     } catch (error: any) {
       setJoinError(`Failed to join: ${error.message}`);
     }
@@ -81,6 +82,7 @@ function App() {
     clearNickname();
     clearRoomId();
     setCurrentView(View.JOIN);
+    client?.teardown();
   };
 
   return (
